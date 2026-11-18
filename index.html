@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Congreso de Seguridad Pública | USJT</title>
-  <link href="https://fonts.googleapis.com/css2?family=Encode+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Encode+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
   <style>
     :root {
       /* PALETA OFICIAL DE COLOR */
@@ -687,7 +688,7 @@
       });
     }
 
-    // GENERACIÓN VECTORIAL SOBRE docs/plantilla.pdf CON PDF-LIB
+    // GENERACIÓN VECTORIAL SOBRE docs/plantilla.pdf CON ENCODE SANS EXTRABOLD 20 PT (#54565A)
     async function generarPDFConstancia() {
       if (!sesionActiva || !window.PDFLib) return;
       const btnPdf = document.getElementById('btn-descargar-pdf');
@@ -705,47 +706,49 @@
 
         const pdfBytes = await respuesta.arrayBuffer();
         const pdfDoc = await PDFDocument.load(pdfBytes);
+
+        // Incrustar Encode Sans ExtraBold (800) con respaldo a HelveticaBold
+        let fontNombre;
+        try {
+          if (window.fontkit) {
+            pdfDoc.registerFontkit(window.fontkit);
+            const fontUrl = 'https://cdn.jsdelivr.net/fontsource/fonts/encode-sans@latest/latin-800-normal.ttf';
+            const fontRes = await fetch(fontUrl);
+            if (!fontRes.ok) throw new Error('Error al cargar Encode Sans ExtraBold');
+            const fontBytes = await fontRes.arrayBuffer();
+            fontNombre = await pdfDoc.embedFont(fontBytes);
+          } else {
+            fontNombre = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+          }
+        } catch (fontErr) {
+          fontNombre = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        }
+
         const paginas = pdfDoc.getPages();
         const primeraPagina = paginas[0];
         const { width, height } = primeraPagina.getSize();
 
-        const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-        const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        // Nombre completo del participante centrado (20 pts, #54565A)
+        const nombreTexto = sesionActiva.nombre.trim();
+        let fontSizeNombre = 20;
+        let anchoTexto = fontNombre.widthOfTextAtSize(nombreTexto, fontSizeNombre);
 
-        // Nombre completo del participante en mayúsculas
-        const nombreTexto = sesionActiva.nombre.toUpperCase();
-        let fontSizeNombre = 22;
-        let anchoTexto = fontBold.widthOfTextAtSize(nombreTexto, fontSizeNombre);
-
-        // Ajusta automáticamente el tamaño si el nombre es muy largo
-        const anchoMaximo = width - 80;
+        // Ajuste automático solo si el nombre supera el ancho útil de la hoja
+        const anchoMaximo = width - 90;
         while (anchoTexto > anchoMaximo && fontSizeNombre > 13) {
-          fontSizeNombre -= 1;
-          anchoTexto = fontBold.widthOfTextAtSize(nombreTexto, fontSizeNombre);
+          fontSizeNombre -= 0.5;
+          anchoTexto = fontNombre.widthOfTextAtSize(nombreTexto, fontSizeNombre);
         }
 
         const posXNombre = (width - anchoTexto) / 2;
-        const posYNombre = height * 0.50;
+        const posYNombre = height * 0.453; // Posición vertical exacta entre "a" y "Por su participación..."
 
         primeraPagina.drawText(nombreTexto, {
           x: posXNombre,
           y: posYNombre,
           size: fontSizeNombre,
-          font: fontBold,
-          color: rgb(0.67, 0.00, 0.20) // Guinda oficial (#AB0033)
-        });
-
-        // Folio de verificación en la parte inferior
-        const folioTexto = `Folio de verificación: USJT-CONGRESO-${sesionActiva.usuario.toUpperCase()}-2026`;
-        const fontSizeFolio = 9;
-        const anchoFolio = fontRegular.widthOfTextAtSize(folioTexto, fontSizeFolio);
-
-        primeraPagina.drawText(folioTexto, {
-          x: (width - anchoFolio) / 2,
-          y: 28,
-          size: fontSizeFolio,
-          font: fontRegular,
-          color: rgb(0.33, 0.34, 0.35) // Gris oficial (#54565A)
+          font: fontNombre,
+          color: rgb(0.329, 0.337, 0.353) // Gris oficial #54565A
         });
 
         const pdfFinalBytes = await pdfDoc.save();
