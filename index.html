@@ -63,13 +63,36 @@
 
     /* VISTA PORTAL DE INICIO */
     #portal-view {
-      flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 26px 24px 18px;
+      flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 24px 18px;
       background-color: var(--fondo-claro);
       background-image: radial-gradient(circle at top right, rgba(221, 201, 163, 0.28), transparent 52%),
                         radial-gradient(circle at bottom left, rgba(171, 0, 51, 0.07), transparent 50%);
     }
+
+    /* BARRA DEL CONTADOR ALINEADA AL CENTRO DE LA COLUMNA IZQUIERDA */
+    .contador-top-grid {
+      max-width: 1240px; width: 100%; margin: 0 auto 18px;
+      display: grid; grid-template-columns: 1.38fr 0.62fr; gap: 32px; align-items: center; min-height: 52px;
+    }
+    .contador-col-izq {
+      display: flex; justify-content: center; align-items: center;
+    }
+    .contador-banner {
+      display: none; align-items: center; gap: 14px;
+      background: #FFFFFF; color: var(--gris-oscuro);
+      font-weight: 700; font-size: 19px; padding: 13px 34px;
+      border-radius: 999px; border: 2px solid var(--oro);
+      box-shadow: 0 5px 16px rgba(84, 86, 90, 0.11);
+    }
+    .contador-banner .icono-reg {
+      font-size: 22px; line-height: 1;
+    }
+    .contador-banner strong {
+      color: var(--guinda); font-size: 24px; font-weight: 800; letter-spacing: -0.4px;
+    }
+
     .portal-grid {
-      max-width: 1240px; width: 100%; margin: auto; display: grid;
+      max-width: 1240px; width: 100%; margin: 0 auto; display: grid;
       grid-template-columns: 1.38fr 0.62fr; gap: 32px; align-items: stretch;
     }
     .event-info {
@@ -96,11 +119,6 @@
       display: inline-flex; align-items: center; gap: 8px; background: var(--arena-clara); color: var(--guinda);
       font-weight: 700; font-size: 11.5px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--oro);
     }
-    .tag-registrados {
-      display: none; align-items: center; gap: 6px; background: #FFFFFF; color: var(--gris-oscuro);
-      font-weight: 700; font-size: 11.5px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--oro);
-    }
-    .tag-registrados strong { color: var(--guinda); }
     .dot-pulse { width: 8px; height: 8px; background: var(--guinda); border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
@@ -255,6 +273,10 @@
     @media (max-width: 1024px) {
       header { padding: 14px 18px; }
       .brand-title h1 { font-size: 16px; }
+      .contador-top-grid { grid-template-columns: 1fr; gap: 0; }
+      .contador-banner { font-size: 15.5px; padding: 10px 22px; }
+      .contador-banner .icono-reg { font-size: 18px; }
+      .contador-banner strong { font-size: 19px; }
       .portal-grid { grid-template-columns: 1fr; gap: 24px; }
       .hero-congreso { flex-direction: column; text-align: center; }
       .hero-tags-row { justify-content: center; }
@@ -292,6 +314,16 @@
 
   <!-- VISTA 1: PORTAL DE INICIO DE SESIÓN -->
   <main id="portal-view">
+    <!-- CONTADOR DE PERSONAS REGISTRADAS CENTRADO SOBRE EL RECUADRO DEL CONGRESO -->
+    <div class="contador-top-grid">
+      <div class="contador-col-izq">
+        <div class="contador-banner" id="badge-registrados">
+          <span class="icono-reg">👥</span>
+          <span><strong id="num-registrados">0</strong> personas registradas</span>
+        </div>
+      </div>
+    </div>
+
     <div class="portal-grid">
       <section class="event-info">
         <!-- LOGO DEL CONGRESO EN GRANDE + TÍTULO OFICIAL -->
@@ -302,7 +334,6 @@
           <div class="hero-texto">
             <div class="hero-tags-row">
               <div class="tag-vivo"><span class="dot-pulse"></span> TRANSMISIÓN EN DIRECTO</div>
-              <div class="tag-registrados" id="badge-registrados">👥 <strong id="num-registrados">0</strong> registrados</div>
             </div>
             <h2>Congreso de Seguridad Pública</h2>
             <div class="lema">“Coordinación, Inteligencia y Desafíos”</div>
