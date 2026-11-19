@@ -89,10 +89,18 @@
     }
     .congreso-logo-grande img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 
+    .hero-tags-row {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px;
+    }
     .tag-vivo {
       display: inline-flex; align-items: center; gap: 8px; background: var(--arena-clara); color: var(--guinda);
-      font-weight: 700; font-size: 11.5px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--oro); margin-bottom: 10px;
+      font-weight: 700; font-size: 11.5px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--oro);
     }
+    .tag-registrados {
+      display: none; align-items: center; gap: 6px; background: #FFFFFF; color: var(--gris-oscuro);
+      font-weight: 700; font-size: 11.5px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--oro);
+    }
+    .tag-registrados strong { color: var(--guinda); }
     .dot-pulse { width: 8px; height: 8px; background: var(--guinda); border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
@@ -249,6 +257,7 @@
       .brand-title h1 { font-size: 16px; }
       .portal-grid { grid-template-columns: 1fr; gap: 24px; }
       .hero-congreso { flex-direction: column; text-align: center; }
+      .hero-tags-row { justify-content: center; }
       .congreso-logo-grande { width: 170px; height: 170px; }
       .instituciones-logos { justify-content: center; }
       .instituciones-logos img { height: 52px; max-width: 165px; }
@@ -291,7 +300,10 @@
             <img src="img/congreso.png" alt="Congreso de Seguridad Pública" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22><rect width=%22160%22 height=%22160%22 rx=%2210%22 fill=%22%23DDC9A3%22/><text x=%2280%22 y=%2284%22 font-family=%22Arial%22 font-weight=%22bold%22 font-size=%2213%22 fill=%22%23AB0033%22 text-anchor=%22middle%22>CONGRESO</text></svg>';">
           </div>
           <div class="hero-texto">
-            <div class="tag-vivo"><span class="dot-pulse"></span> TRANSMISIÓN EN DIRECTO</div>
+            <div class="hero-tags-row">
+              <div class="tag-vivo"><span class="dot-pulse"></span> TRANSMISIÓN EN DIRECTO</div>
+              <div class="tag-registrados" id="badge-registrados">👥 <strong id="num-registrados">0</strong> registrados</div>
+            </div>
             <h2>Congreso de Seguridad Pública</h2>
             <div class="lema">“Coordinación, Inteligencia y Desafíos”</div>
             <p>Ingresa con el usuario y contraseña enviados a tu correo para acceder a la sala en vivo y registrar automáticamente tu asistencia para constancia.</p>
@@ -427,7 +439,7 @@
   </div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwXEXnRGj6mpKg6Ariid5RKXIQiF74QwxAezZjxJgSjfGPKVY3w_NbqK0N2qGaCGpw9/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwb-Bt2a4pVXAMF7KvMirmbeoK8FEq3uCOyYsres65h3t2npNdH2HGXgpS0C1um1leH/exec';
 
     let sesionActiva = null;
     let segundosPendientes = 0;
@@ -438,6 +450,43 @@
     document.getElementById('password').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') iniciarSesion();
     });
+
+    async function fetchConReintento(payload, onEspera, maxIntentos = 6) {
+      for (let intento = 1; intento <= maxIntentos; intento++) {
+        try {
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) throw new Error('Servidor ocupado');
+          return await response.json();
+        } catch (err) {
+          if (intento === maxIntentos) throw err;
+          const esperaMs = (intento * 1500) + Math.floor(Math.random() * 2000);
+          if (onEspera) onEspera(intento + 1, maxIntentos);
+          await new Promise(resolve => setTimeout(resolve, esperaMs));
+        }
+      }
+    }
+
+    function cargarContadorRegistrados() {
+      fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ accion: 'total_registrados' })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (typeof res.total === 'number') {
+          document.getElementById('num-registrados').textContent = res.total.toLocaleString('es-MX');
+          document.getElementById('badge-registrados').style.display = 'inline-flex';
+        }
+      })
+      .catch(() => {
+        // Si falla la red, se mantiene oculto sin afectar el login
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', cargarContadorRegistrados);
 
     function alternarPassword() {
       const input = document.getElementById('password');
@@ -498,7 +547,7 @@
       );
     }
 
-    function iniciarSesion() {
+    async function iniciarSesion() {
       const user = document.getElementById('usuario').value;
       const pass = document.getElementById('password').value;
       const btn = document.getElementById('btn-entrar');
@@ -509,16 +558,28 @@
         return;
       }
 
+      const mensajesCarga = [
+        'Verificando credenciales...',
+        'Preparando tu acceso...',
+        'Conectando con la sala...',
+        'Cargando transmisión...',
+        'Un momento más...'
+      ];
+
       btn.disabled = true;
-      btn.textContent = 'Verificando credenciales...';
+      btn.textContent = mensajesCarga[0];
       errorDiv.style.display = 'none';
 
-      fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ accion: 'login', usuario: user, password: pass })
-      })
-      .then(response => response.json())
-      .then(res => {
+      try {
+        const res = await fetchConReintento(
+          { accion: 'login', usuario: user, password: pass },
+          (sigIntento) => {
+            const idx = Math.min(sigIntento - 1, mensajesCarga.length - 1);
+            btn.textContent = mensajesCarga[idx];
+          },
+          6
+        );
+
         if (res.autorizado) {
           sesionActiva = {
             usuario: res.usuario,
@@ -532,12 +593,11 @@
           btn.disabled = false;
           btn.textContent = 'Entrar a la Transmisión';
         }
-      })
-      .catch(() => {
-        mostrarError('Error de conexión con la base de datos. Verifica tu red.');
+      } catch (err) {
+        mostrarError('No se pudo completar el acceso. Por favor presiona "Entrar" nuevamente.');
         btn.disabled = false;
         btn.textContent = 'Entrar a la Transmisión';
-      });
+      }
     }
 
     function mostrarError(texto) {
@@ -654,7 +714,7 @@
       }
     });
 
-    function abrirModalConstancia() {
+    async function abrirModalConstancia() {
       if (!sesionActiva) return;
       enviarHeartbeat(false);
       document.getElementById('modal-constancia').style.display = 'flex';
@@ -662,16 +722,28 @@
       const detalleEl = document.getElementById('constancia-detalle');
       const btnPdf = document.getElementById('btn-descargar-pdf');
 
+      const mensajesConstancia = [
+        'Consultando registro global...',
+        'Verificando minutos acumulados...',
+        'Validando asistencia...',
+        'Finalizando consulta...'
+      ];
+
       statusEl.className = 'status-pill status-wait';
-      statusEl.textContent = 'Consultando registro global...';
+      statusEl.textContent = mensajesConstancia[0];
+      detalleEl.textContent = 'Esto puede tomar unos segundos.';
       btnPdf.style.display = 'none';
 
-      fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ accion: 'consultar_constancia', usuario: sesionActiva.usuario })
-      })
-      .then(r => r.json())
-      .then(res => {
+      try {
+        const res = await fetchConReintento(
+          { accion: 'consultar_constancia', usuario: sesionActiva.usuario },
+          (sigIntento) => {
+            const idx = Math.min(sigIntento - 1, mensajesConstancia.length - 1);
+            statusEl.textContent = mensajesConstancia[idx];
+          },
+          6
+        );
+
         if (res.cumple) {
           statusEl.className = 'status-pill status-ok';
           statusEl.textContent = `✓ Acreditado (${res.minutos} min acumulados)`;
@@ -682,10 +754,10 @@
           statusEl.textContent = `En progreso: ${res.minutos} / ${res.requeridos} min`;
           detalleEl.innerHTML = `Permanece conectado en las transmisiones del Congreso hasta acumular al menos <strong>${res.requeridos} minutos</strong> totales para habilitar tu descarga.`;
         }
-      })
-      .catch(() => {
-        statusEl.textContent = 'No se pudo consultar en este momento';
-      });
+      } catch (err) {
+        statusEl.textContent = 'No se pudo completar la consulta';
+        detalleEl.textContent = 'Cierra esta ventana y vuelve a presionar "Constancia" en un momento.';
+      }
     }
 
     // GENERACIÓN VECTORIAL SOBRE docs/plantilla.pdf CON ENCODE SANS EXTRABOLD 20 PT (#54565A)
